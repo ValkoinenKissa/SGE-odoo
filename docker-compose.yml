@@ -1,0 +1,35 @@
+services:
+  db:
+    image: postgres:15
+    environment:
+      - POSTGRES_USER=odoo
+      - POSTGRES_PASSWORD=odoo
+      - POSTGRES_DB=postgres
+      - PGDATA=/var/lib/postgresql/data/pgdata
+    volumes:
+      - ./postgresql:/var/lib/postgresql/data/pgdata
+    restart: unless-stopped
+    healthcheck: # Health check para asegurarnos que la bd esté completamente levantada
+      test: ["CMD-SHELL", "pg_isready -U odoo -d postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+
+  web:
+    image: odoo:18
+    depends_on:
+      db:
+        condition: service_healthy # Solo levantamos el servidor web si la base de datos esta healthy
+    ports:
+      - "8069:8069"
+      - "8072:8072"  # Puerto para longpolling/live chat
+    volumes:
+      - ./addons:/mnt/extra-addons
+      - ./odoo.conf:/etc/odoo/odoo.conf
+      - ./odoo-web-data:/var/lib/odoo
+    environment:
+      - HOST=db
+      - USER=odoo
+      - PASSWORD=odoo
+    restart: unless-stopped
