@@ -265,6 +265,56 @@ Si vas a usar esto en producción:
 5. **Haz backups regulares** de `postgresql/` y `odoo-web-data/`
 6. **Actualiza regularmente** las imágenes de Docker
 
+
+## 🧑‍💻 Desarrollo con Dev Containers (VS Code)
+
+Este proyecto incluye configuración para [Dev Containers](https://containers.dev/), lo que te permite desarrollar directamente dentro del contenedor de Odoo usando VS Code con todas las extensiones y herramientas ya configuradas.
+
+### Requisitos
+
+- [Visual Studio Code](https://code.visualstudio.com/)
+- Extensión [Dev Containers](https://marketplace.visualstudio.com/items?itemName=ms-vscode-remote.remote-containers) instalada
+- Docker en ejecución
+
+### Estructura de archivos
+
+```
+.devcontainer/
+├── devcontainer.json       # Configuración del Dev Container
+└── docker-compose.yml      # Override de Docker Compose para desarrollo
+```
+
+### Cómo funciona
+
+La configuración en `.devcontainer/` extiende el `docker-compose.yml` principal del proyecto:
+
+- **`devcontainer.json`** apunta al servicio `web` (Odoo) como contenedor de trabajo y monta el proyecto en `/workspaces` dentro del contenedor.
+- **`.devcontainer/docker-compose.yml`** sobreescribe el comando por defecto con `sleep infinity` para mantener el contenedor activo mientras VS Code está conectado, sin interferir con el proceso de Odoo.
+
+### Pasos para usarlo
+
+1. Asegúrate de tener los contenedores levantados o simplemente abre el proyecto en VS Code.
+
+2. Abre la paleta de comandos (`Ctrl+Shift+P` / `Cmd+Shift+P`) y ejecuta:
+
+   ```
+   Dev Containers: Reopen in Container
+   ```
+
+3. VS Code se reconectará al contenedor `web` de Odoo. Tendrás acceso directo al sistema de archivos del contenedor en `/workspaces`.
+
+### Notas importantes
+
+- Los cambios en `addons/` se reflejan en tiempo real gracias al volumen montado.
+- El contenedor de base de datos (`db`) sigue corriendo con normalidad; solo el servicio `web` se adapta para el modo desarrollo.
+- Si necesitas ejecutar comandos de Odoo manualmente (como actualizar módulos), puedes hacerlo desde la terminal integrada de VS Code:
+
+  ```bash
+  odoo --update=nombre_modulo --database=mi_empresa --stop-after-init
+  ```
+
+- Para volver al modo normal (sin Dev Container), usa simplemente `docker-compose up -d` desde tu terminal.
+
 ## 📚 Recursos adicionales
 
 - [Documentación oficial de Odoo](https://www.odoo.com/documentation/18.0/)
