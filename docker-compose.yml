@@ -22,8 +22,8 @@ services:
       db:
         condition: service_healthy # Solo levantamos el servidor web si la base de datos esta healthy
     ports:
-      - "8069:8069"
-      - "8072:8072"  # Puerto para longpolling/live chat
+      - "0.0.0.0:8069:8069"
+      - "0.0.0.0:8072:8072"
     volumes:
       - ./addons:/mnt/extra-addons
       - ./odoo.conf:/etc/odoo/odoo.conf
