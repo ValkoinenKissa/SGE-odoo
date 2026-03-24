@@ -19,22 +19,19 @@
 	"workspaceFolder": "/workspaces/${localWorkspaceFolderBasename}",
 
 	"forwardPorts": [
-		8069,
-		8072
+		8069
 	],
 	"portsAttributes": {
 		"8069": {
 			"label": "Odoo Web",
 			"onAutoForward": "silent"
-		},
-		"8072": {
-			"label": "Odoo Longpolling",
-			"onAutoForward": "silent"
 		}
 	},
 	"otherPortsAttributes": {
 		"onAutoForward": "ignore"
-	}
+	},
+	
+	"postCreateCommand": "odoo --config /etc/odoo/odoo.conf -d odoo_SGE -i base --stop-after-init"
 
 	// Features to add to the dev container. More info: https://containers.dev/features.
 	// "features": {},
