@@ -16,7 +16,25 @@
 
 	// The optional 'workspaceFolder' property is the path VS Code should open by default when
 	// connected. This is typically a file mount in .devcontainer/docker-compose.yml
-	"workspaceFolder": "/workspaces/${localWorkspaceFolderBasename}"
+	"workspaceFolder": "/workspaces/${localWorkspaceFolderBasename}",
+
+	"forwardPorts": [
+		8069,
+		8072
+	],
+	"portsAttributes": {
+		"8069": {
+			"label": "Odoo Web",
+			"onAutoForward": "silent"
+		},
+		"8072": {
+			"label": "Odoo Longpolling",
+			"onAutoForward": "silent"
+		}
+	},
+	"otherPortsAttributes": {
+		"onAutoForward": "ignore"
+	}
 
 	// Features to add to the dev container. More info: https://containers.dev/features.
 	// "features": {},
