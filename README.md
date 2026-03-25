@@ -7,7 +7,7 @@ Proyecto de Odoo 18 con PostgreSQL 15 usando Docker Compose para un entorno de d
 - [Docker](https://docs.docker.com/get-docker/) instalado (versión 20.10 o superior)
 - [Docker Compose](https://docs.docker.com/compose/install/) instalado (versión 2.0 o superior)
 - Al menos 4GB de RAM disponible
-- Puertos 8069 y 8072 libres en tu máquina
+- Puerto 8069 libre en tu máquina
 
 ## 🚀 Instalación y configuración
 
@@ -49,8 +49,8 @@ db_host = db
 db_port = 5432
 db_user = odoo
 db_password = odoo
-workers = 2
-max_cron_threads = 1
+db_name = odoo_SGE
+workers = 0
 ```
 
 > ⚠️ **IMPORTANTE**: Cambia `admin_passwd` por una contraseña segura antes de usar en producción.
@@ -61,7 +61,7 @@ Para producción, edita el archivo `docker-compose.yml` y cambia las contraseña
 
 ```yaml
 environment:
-  - POSTGRES_PASSWORD=TU_PASSWORD_SEGURA  # Cambiar aquí
+  - POSTGRES_PASSWORD=TU_PASSWORD_SEGURA
 ```
 
 Y actualiza también en `odoo.conf`:
@@ -93,7 +93,7 @@ Deberías ver algo como:
 ```
 NAME                COMMAND                  SERVICE   STATUS          PORTS
 project-db-1        "docker-entrypoint.s…"   db        Up (healthy)    5432/tcp
-project-web-1       "/entrypoint.sh odoo"    web       Up              0.0.0.0:8069->8069/tcp, 0.0.0.0:8072->8072/tcp
+project-web-1       "/entrypoint.sh odoo"    web       Up              0.0.0.0:8069->8069/tcp
 ```
 
 ### Ver los logs
@@ -111,21 +111,19 @@ docker-compose logs -f db
 
 ## 🌐 Acceder a Odoo
 
-Una vez levantado, accede a Odoo desde tu navegador:
+Una vez levantado, accede a Odoo desde tu navegador en:
 
 ```
 http://localhost:8069
 ```
 
-En la primera ejecución:
-1. Se mostrará la pantalla de creación de base de datos
-2. Completa los siguientes campos:
-   - **Master Password**: La que configuraste en `admin_passwd` del `odoo.conf`
-   - **Database Name**: Nombre de tu base de datos (ej: `mi_empresa`)
-   - **Email**: Tu email de administrador
-   - **Password**: Contraseña para el usuario administrador
-   - **Language**: Español (o el idioma que prefieras)
-   - **Country**: España (o tu país)
+En la primera ejecución se mostrará la pantalla de creación de base de datos. Completa los siguientes campos:
+- **Master Password**: La que configuraste en `admin_passwd` del `odoo.conf`
+- **Database Name**: Nombre de tu base de datos (ej: `odoo_SGE`)
+- **Email**: Tu email de administrador
+- **Password**: Contraseña para el usuario administrador
+- **Language**: Español (o el idioma que prefieras)
+- **Country**: España (o tu país)
 
 ## 🛠️ Comandos útiles
 
@@ -236,7 +234,7 @@ docker-compose ps
 
 ```bash
 docker-compose down
-sudo rm -rf postgresql odoo-web-data
+rm -rf postgresql odoo-web-data
 mkdir -p addons postgresql odoo-web-data
 docker-compose up -d
 ```
@@ -288,36 +286,40 @@ Este proyecto incluye configuración para [Dev Containers](https://containers.de
 
 La configuración en `.devcontainer/` extiende el `docker-compose.yml` principal del proyecto:
 
-- **`devcontainer.json`** apunta al servicio `web` (Odoo) como contenedor de trabajo y monta el proyecto en `/workspaces` dentro del contenedor.
+- **`devcontainer.json`** apunta al servicio `web` (Odoo) como contenedor de trabajo, monta el proyecto en `/workspaces` dentro del contenedor, e inicializa la base de datos automáticamente la primera vez.
 - **`.devcontainer/docker-compose.yml`** sobreescribe el comando por defecto con `sleep infinity` para mantener el contenedor activo mientras VS Code está conectado, sin interferir con el proceso de Odoo.
 
 ### Pasos para usarlo
 
-1. Asegúrate de tener los contenedores levantados o simplemente abre el proyecto en VS Code.
+1. Abre el proyecto en VS Code.
 
-2. Abre la paleta de comandos (`Ctrl+Shift+P` / `Cmd+Shift+P`) y ejecuta:
+2. Abre la paleta de comandos (`Ctrl+Shift+P`) y ejecuta:
 
    ```
    Dev Containers: Reopen in Container
    ```
 
-3. VS Code se reconectará al contenedor `web` de Odoo. Tendrás acceso directo al sistema de archivos del contenedor en `/workspaces`.
+3. VS Code construirá el entorno e inicializará automáticamente la base de datos `odoo_SGE` la primera vez.
+
+4. Accede a Odoo en `http://localhost:8069` con las credenciales por defecto:
+   - **Usuario**: `admin`
+   - **Contraseña**: `admin`
 
 ### Notas importantes
 
 - Los cambios en `addons/` se reflejan en tiempo real gracias al volumen montado.
 - El contenedor de base de datos (`db`) sigue corriendo con normalidad; solo el servicio `web` se adapta para el modo desarrollo.
-- Si necesitas ejecutar comandos de Odoo manualmente (como actualizar módulos), puedes hacerlo desde la terminal integrada de VS Code:
+- La base de datos solo se inicializa la primera vez. En reinicios posteriores del devcontainer los datos persisten.
+- Si necesitas actualizar un módulo manualmente, puedes hacerlo desde la terminal integrada de VS Code:
 
   ```bash
-  odoo --update=nombre_modulo --database=mi_empresa --stop-after-init
+  odoo --config /etc/odoo/odoo.conf -d odoo_SGE --update=nombre_modulo --stop-after-init
   ```
 
-- Para volver al modo normal (sin Dev Container), usa simplemente `docker-compose up -d` desde tu terminal.
+- Para volver al modo normal (sin Dev Container), usa simplemente `docker-compose up -d` desde tu terminal y crea la BD desde `http://localhost:8069/web/database/manager`.
 
 ## 📚 Recursos adicionales
 
 - [Documentación oficial de Odoo](https://www.odoo.com/documentation/18.0/)
 - [Odoo en Docker Hub](https://hub.docker.com/_/odoo)
 - [PostgreSQL en Docker Hub](https://hub.docker.com/_/postgres)
-
