@@ -41,9 +41,11 @@ jobs:
 
       - name: Assert filestore path
         run: |
+          set +e
           CONTAINER=$(docker ps \
             --filter "label=com.docker.compose.service=web" \
             --format "{{.ID}}")
+          set -e
 
           if [ -z "$CONTAINER" ]; then
             echo "ERROR: Odoo container not found"
@@ -51,7 +53,7 @@ jobs:
             docker compose logs
             exit 1
           fi
-
+      
           docker exec "$CONTAINER" test -d /var/lib/odoo/filestore
           docker exec "$CONTAINER" test ! -d /root/.local/share/Odoo
 
