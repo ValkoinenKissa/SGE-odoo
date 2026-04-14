@@ -31,7 +31,7 @@
 		"onAutoForward": "ignore"
 	},
 	
-	"postCreateCommand": "bash /workspaces/SGE-odoo/scripts/init-db.sh"
+	"postCreateCommand": "sed -i 's/\\r//' /workspaces/SGE-odoo/scripts/init-db.sh && bash /workspaces/SGE-odoo/scripts/init-db.sh"
 
 	// Features to add to the dev container. More info: https://containers.dev/features.
 	// "features": {},
