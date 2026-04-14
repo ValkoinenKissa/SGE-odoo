@@ -7,7 +7,7 @@ services:
       - POSTGRES_DB=postgres
       - PGDATA=/var/lib/postgresql/data/pgdata
     volumes:
-      - ./postgresql:/var/lib/postgresql/data/pgdata
+       - db-data:/var/lib/postgresql/data/pgdata  # named volume
     restart: unless-stopped
     healthcheck: # Health check para asegurarnos que la bd esté completamente levantada
       test: ["CMD-SHELL", "pg_isready -U odoo -d postgres"]
@@ -24,11 +24,15 @@ services:
     ports:
       - "0.0.0.0:8069:8069"
     volumes:
-      - ./addons:/mnt/extra-addons
-      - ./odoo.conf:/etc/odoo/odoo.conf
-      - ./odoo-web-data:/var/lib/odoo
+      - ./addons:/mnt/extra-addons          # bind mount (necesario para desarrollo de modulos)
+      - ./odoo.conf:/etc/odoo/odoo.conf     # bind mount para sobrrescribir config
+      - web-data:/var/lib/odoo              # named volume
     environment:
       - HOST=db
       - USER=odoo
       - PASSWORD=odoo
     restart: unless-stopped
+
+volumes:          # ← declaración obligatoria al final
+  db-data:
+  web-data:
