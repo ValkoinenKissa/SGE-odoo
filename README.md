@@ -36,6 +36,10 @@ docker compose up -d
 
 4. Crear la base de datos manualmente desde la pantalla inicial de Odoo.
 
+   Al abrir `http://localhost:8069`, Odoo mostrará el formulario de creación de base de datos. Usa:
+
+   - **Master Password**: el valor de `admin_passwd` definido en `odoo.conf` (por ejemplo, `admin123` si estás usando la configuración de ejemplo).
+   - **Database Name**: el nombre que quieras para tu base de datos, pero recuerda usar **ese mismo nombre** después en los comandos CLI; si eliges otro, sustituye el nombre en los ejemplos por el que hayas creado.
 > Este proyecto **no** crea bases de datos automáticamente al arrancar contenedores.
 
 ---
@@ -211,9 +215,10 @@ Pasos:
 
 Notas:
 
-- La base de datos se crea **manual** desde Odoo.
+- La base de datos se crea **manualmente** desde Odoo.
 - No hay scripts automáticos de inicialización de BD.
-- Puedes usar `docker compose exec web bash` para administración.
+- Si ya estás dentro del Dev Container, abre una terminal en el contenedor y usa `bash` para administración.
+- Si estás en el host, puedes entrar al servicio `web` con `docker compose exec web bash`.
 
 ---
 
