@@ -1,0 +1,46 @@
+name: Odoo CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  odoo:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build Odoo image
+        run: docker compose build
+
+      - name: Start Odoo stack
+        run: docker compose up -d
+
+      - name: Wait for Odoo to start
+        run: |
+          echo "Waiting for Odoo..."
+          for i in {1..30}; do
+            if curl -s http://localhost:8069/web/login > /dev/null; then
+              echo "Odoo is up"
+              exit 0
+            fi
+            sleep 5
+          done
+          echo "Odoo did not start in time"
+          exit 1
+
+      - name: Assert filestore path
+        run: |
+          CONTAINER=$(docker compose ps -q web)
+          docker exec "$CONTAINER" test -d /var/lib/odoo/filestore
+          docker exec "$CONTAINER" test ! -d /root/.local/share/Odoo
+
+      - name: Odoo logs (on failure)
+        if: failure()
+        run: docker compose logs
