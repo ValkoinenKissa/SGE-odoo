@@ -1,53 +1,79 @@
-# Odoo 18 con Docker Compose
+# Odoo 18 + Docker Compose
 
-Proyecto de Odoo 18 con PostgreSQL 15 usando Docker Compose para un entorno de desarrollo y producción estable.
+Entorno de desarrollo para Odoo 18 con PostgreSQL 15 y un módulo personalizado de newsletter.
 
-## 📋 Requisitos previos
+## Objetivo del repositorio
 
-- [Docker](https://docs.docker.com/get-docker/) instalado (versión 20.10 o superior)
-- [Docker Compose](https://docs.docker.com/compose/install/) instalado (versión 2.0 o superior)
-- Al menos 4GB de RAM disponible
-- Puerto 8069 libre en tu máquina
+- Levantar Odoo de forma reproducible con Docker Compose.
+- Desarrollar módulos en local usando la carpeta addons montada en el contenedor.
+- Probar e instalar el módulo newsletter_module incluido en este proyecto.
 
-## 🚀 Instalación y configuración
+## Requisitos
 
-### 1. Clonar el repositorio
+- Docker 20.10+.
+- Docker Compose 2.x.
+- Puerto 8069 libre.
+- Al menos 4 GB de RAM recomendados.
+
+## Inicio rápido
+
+1. Clonar el repositorio:
 
 ```bash
 git clone https://github.com/ValkoinenKissa/SGE-odoo.git
 cd SGE-odoo
 ```
 
-### 2. Levantar el proyecto
+2. Levantar servicios:
 
 ```bash
 docker compose up -d
 ```
 
-Los volúmenes de datos se crean automáticamente gestionados por Docker. No es necesario crear directorios manualmente.
+3. Abrir Odoo en:
 
-## 📁 Estructura del proyecto
-
+```text
+http://localhost:8069
 ```
+
+4. Crear la base de datos desde el navegador en la pantalla inicial de Odoo.
+
+Nota: el script scripts/init-db.sh está pensado para el flujo de Dev Container, donde sí está disponible dentro del entorno de trabajo.
+
+## Estructura del proyecto
+
+```text
 .
 ├── .devcontainer/
-│   ├── devcontainer.json       # Configuración del Dev Container
-│   └── docker-compose.yml      # Override de Docker Compose para desarrollo
-├── addons/                     # Tus módulos personalizados de Odoo
+├── addons/
+│   └── newsletter_module/
 ├── scripts/
-│   └── init-db.sh              # Script de inicialización de la base de datos
-├── docker-compose.yml          # Configuración de Docker Compose
-├── odoo.conf                   # Configuración de Odoo
-├── .gitignore
+│   └── init-db.sh
+├── docker-compose.yml
+├── odoo.conf
 ├── LICENSE
 └── README.md
 ```
 
-> Los datos de PostgreSQL y el filestore de Odoo se almacenan en **named volumes** gestionados por Docker (`sge-odoo_db-data` y `sge-odoo_web-data`). No aparecen como carpetas en el proyecto y no deben versionarse.
+## Configuración actual
 
-## ⚙️ Configuración
+### docker-compose.yml
 
-### `odoo.conf`
+- Servicio db:
+  - Imagen postgres:15.
+  - Usuario y contraseña: odoo/odoo.
+  - Base inicial: postgres.
+  - Volumen persistente: db-data.
+  - Healthcheck con pg_isready.
+- Servicio web:
+  - Imagen odoo:18.
+  - Puerto 8069 expuesto.
+  - Montajes:
+     - ./addons -> /mnt/extra-addons.
+     - ./odoo.conf -> /etc/odoo/odoo.conf.
+     - web-data -> /var/lib/odoo.
+
+### odoo.conf
 
 ```ini
 [options]
@@ -60,189 +86,158 @@ db_password = odoo
 workers = 0
 ```
 
-> ⚠️ `admin_passwd` es la contraseña **maestra** para gestión de bases de datos desde `/web/database/manager`, no la contraseña del usuario `admin` de Odoo.
+Importante: admin_passwd es la contraseña maestra de gestión de bases de datos, no la del usuario admin de Odoo.
 
-> ℹ️ `db_name` no está definido intencionalmente, lo que permite trabajar con múltiples bases de datos desde la interfaz web.
+## Módulo incluido: newsletter_module
 
-## 🌐 Acceder a Odoo
+### Resumen
 
-Una vez levantado, accede a Odoo desde tu navegador en:
+Módulo de gestión de suscripciones newsletter con categorías, validación de email, historial (chatter) y acciones para activar o desactivar suscriptores.
 
-```
-http://localhost:8069
-```
+### Dependencias del módulo
 
-Las credenciales por defecto son:
+- base
+- mail
 
-- **Usuario**: `admin`
-- **Contraseña**: `admin`
+### Modelos
 
-## 🛠️ Comandos útiles
+1. newsletter.subscription
+    - Campos principales: name, email, is_active, subscription_date, category_id, source.
+    - Restricciones:
+      - SQL: email único.
+      - Python: validación de formato de email con regex.
+    - Métodos:
+      - action_activate.
+      - action_deactivate.
 
-### Ver el estado de los contenedores
+2. newsletter.category
+    - Campos principales: name, code, subscription_ids.
+    - Campo calculado: subscriber_count.
+
+### Seguridad
+
+Permisos en security/ir.model.access.csv para usuarios internos (base.group_user):
+
+- Lectura, escritura y creación en suscripciones y categorías.
+- Sin permiso de borrado.
+
+### Vistas y menús
+
+- Vista lista y formulario para newsletter.subscription.
+- Vista lista y formulario para newsletter.category.
+- Menú raíz Newsletter.
+- Menú Subscriptions enlazado a la acción principal.
+
+## Instalar y actualizar el módulo
+
+### Desde interfaz de Odoo
+
+1. Activar modo desarrollador.
+2. Ir a Aplicaciones.
+3. Actualizar la lista de aplicaciones.
+4. Buscar Custom Newsletter o newsletter_module.
+5. Instalar.
+
+### Desde consola
+
+Usando la base odoo_SGE:
 
 ```bash
-docker compose ps
+docker compose exec web odoo --config /etc/odoo/odoo.conf -d odoo_SGE -i newsletter_module --stop-after-init
 ```
 
-### Ver logs
+Para actualizar cambios del módulo:
 
 ```bash
-# Todos los servicios
-docker compose logs -f
+docker compose exec web odoo --config /etc/odoo/odoo.conf -d odoo_SGE -u newsletter_module --stop-after-init
+docker compose restart web
+```
 
-# Solo Odoo
+## Flujo recomendado de desarrollo
+
+1. Editar código en addons/newsletter_module.
+2. Actualizar el módulo con -u newsletter_module.
+3. Revisar logs:
+
+```bash
 docker compose logs -f web
+```
 
-# Solo PostgreSQL
+4. Verificar interfaz en http://localhost:8069.
+
+## Comandos útiles
+
+```bash
+# Estado
+docker compose ps
+
+# Logs
+docker compose logs -f
+docker compose logs -f web
 docker compose logs -f db
-```
 
-### Detener los contenedores (mantiene los datos)
-
-```bash
-docker compose down
-```
-
-### Reiniciar solo Odoo
-
-```bash
-docker compose restart web
-```
-
-### Detener y eliminar todo, incluidos los datos ⚠️
-
-```bash
-docker compose down -v
-```
-
-### Acceder a la consola del contenedor de Odoo
-
-```bash
+# Shell en Odoo
 docker compose exec web bash
-```
 
-### Acceder a PostgreSQL
-
-```bash
+# Consola PostgreSQL
 docker compose exec db psql -U odoo -d postgres
-```
 
-### Ver los volúmenes de Docker
+# Parar (manteniendo datos)
+docker compose down
 
-```bash
-docker volume ls | grep sge-odoo
-```
-
-## 📦 Añadir módulos personalizados
-
-1. Coloca tus módulos en la carpeta `addons/`:
-
-```
-addons/
-└── mi_modulo/
-    ├── __init__.py
-    ├── __manifest__.py
-    └── ...
-```
-
-2. Reinicia Odoo:
-
-```bash
-docker compose restart web
-```
-
-3. En Odoo ve a **Aplicaciones** → **Actualizar lista de aplicaciones** e instala tu módulo.
-
-Para actualizar un módulo existente:
-
-```bash
-docker compose exec web odoo --config /etc/odoo/odoo.conf -d odoo_SGE --update=nombre_modulo --stop-after-init
-```
-
-## 🧑‍💻 Desarrollo con Dev Containers (VS Code)
-
-Este proyecto incluye configuración para [Dev Containers](https://containers.dev/), lo que te permite desarrollar directamente dentro del contenedor de Odoo usando VS Code.
-
-### Requisitos
-
-- [Visual Studio Code](https://code.visualstudio.com/)
-- Extensión [Dev Containers](https://marketplace.visualstudio.com/items?itemName=ms-vscode-remote.remote-containers)
-- Docker en ejecución
-
-### Cómo funciona
-
-La configuración en `.devcontainer/` extiende el `docker-compose.yml` principal:
-
-- **`devcontainer.json`** apunta al servicio `web` como contenedor de trabajo, reenvía el puerto 8069, y ejecuta `scripts/init-db.sh` automáticamente la primera vez mediante `postCreateCommand`.
-- **`.devcontainer/docker-compose.yml`** sobreescribe el comando del contenedor con `odoo ... & sleep infinity` para mantenerlo activo mientras VS Code está conectado.
-
-### `scripts/init-db.sh`
-
-Este script se ejecuta una sola vez al crear el devcontainer. Se encarga de:
-
-1. Esperar a que PostgreSQL esté listo.
-2. Crear la base de datos `odoo_SGE` (si no existe).
-3. Inicializar Odoo con el módulo `base`.
-
-```bash
-#!/bin/bash
-set -e
-
-while ! pg_isready -h db -U odoo; do sleep 2; done
-
-PGPASSWORD=odoo psql -h db -U odoo -d postgres -c 'CREATE DATABASE "odoo_SGE" OWNER odoo;' 2>/dev/null || true
-
-odoo --config /etc/odoo/odoo.conf -d odoo_SGE -i base --stop-after-init
-```
-
-> El `|| true` al final del `psql` hace que si la BD ya existe el script no falle y continúe normalmente.
-
-### Pasos para usarlo
-
-1. Abre el proyecto en VS Code.
-2. Abre la paleta de comandos (`Ctrl+Shift+P`) y ejecuta:
-
-```
-Dev Containers: Reopen in Container
-```
-
-3. VS Code construirá el entorno e inicializará automáticamente la base de datos `odoo_SGE` la primera vez.
-4. Accede a Odoo en `http://localhost:8069` con:
-   - **Usuario**: `admin`
-   - **Contraseña**: `admin`
-
-### Notas importantes
-
-- Los cambios en `addons/` se reflejan en tiempo real gracias al volumen montado.
-- La base de datos solo se inicializa la primera vez. En reinicios posteriores del devcontainer los datos persisten en los named volumes.
-- Si necesitas reinicializar desde cero, elimina los volúmenes y vuelve a abrir el devcontainer:
-
-```bash
+# Parar y borrar datos
 docker compose down -v
-# Dev Containers: Rebuild and Reopen in Container
 ```
 
-## 🔐 Seguridad para producción
+## Dev Container (VS Code)
 
-Si vas a usar esto en producción:
+La carpeta .devcontainer permite abrir el proyecto directamente en contenedor.
 
-1. **Cambia todas las contraseñas** en `docker-compose.yml` y `odoo.conf`.
-2. **Usa variables de entorno** en lugar de contraseñas hardcodeadas.
-3. **Configura un proxy reverso** (nginx) con SSL/TLS.
-4. **Limita el acceso** al puerto 8069 usando firewall.
-5. **Haz backups regulares** de los volúmenes Docker.
-6. **Actualiza regularmente** las imágenes de Docker.
+Pasos:
 
-Para hacer backup de los volúmenes:
+1. Abrir el proyecto en VS Code.
+2. Ejecutar Dev Containers: Reopen in Container.
+3. Esperar a que termine la inicialización.
 
-```bash
-docker run --rm -v sge-odoo_db-data:/data -v $(pwd):/backup alpine tar czf /backup/db-backup.tar.gz /data
-docker run --rm -v sge-odoo_web-data:/data -v $(pwd):/backup alpine tar czf /backup/web-backup.tar.gz /data
-```
+Al levantar todo el stack desde Dev Container:
 
-## 📚 Recursos adicionales
+- Se crea automáticamente la base de datos odoo_SGE (si no existe).
+- Las credenciales por defecto son:
+  - Usuario: admin
+  - Contraseña: admin
 
-- [Documentación oficial de Odoo](https://www.odoo.com/documentation/18.0/)
-- [Odoo en Docker Hub](https://hub.docker.com/_/odoo)
-- [PostgreSQL en Docker Hub](https://hub.docker.com/_/postgres)
+El script scripts/init-db.sh se encarga de:
+
+- Esperar a PostgreSQL.
+- Crear odoo_SGE si no existe.
+- Instalar el módulo base.
+
+## Solución de problemas
+
+1. No abre localhost:8069.
+    - Revisar docker compose ps y docker compose logs -f web.
+
+2. El módulo no aparece en Aplicaciones.
+    - Confirmar que existe addons/newsletter_module/__manifest__.py.
+    - Actualizar lista de aplicaciones.
+    - Revisar logs de Odoo por errores XML o permisos.
+
+3. Error de base de datos.
+    - Verificar credenciales en odoo.conf y docker-compose.yml.
+    - Revisar estado de db con docker compose logs -f db.
+
+## Seguridad y producción
+
+Antes de pasar a producción:
+
+1. Cambiar todas las contraseñas por secretos reales.
+2. Evitar credenciales hardcodeadas, usar variables de entorno.
+3. Publicar Odoo detrás de proxy inverso con TLS.
+4. Restringir acceso de red al puerto 8069.
+5. Configurar copias de seguridad periódicas.
+
+## Referencias
+
+- Documentación oficial de Odoo 18: https://www.odoo.com/documentation/18.0/
+- Imagen Odoo: https://hub.docker.com/_/odoo
+- Imagen PostgreSQL: https://hub.docker.com/_/postgres
