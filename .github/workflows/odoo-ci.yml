@@ -1,17 +1,13 @@
 name: Odoo CI
-
 on:
   push:
     branches: [main]
   pull_request:
-
 env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
-
 jobs:
   odoo:
     runs-on: ubuntu-latest
-
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -19,69 +15,81 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
-      - name: Build Odoo image
-        run: docker compose build
-
       - name: Start Odoo stack
         run: docker compose up -d
 
-      - name: Wait for Odoo to start
+      - name: Wait for Odoo to be ready
         run: |
           echo "Waiting for Odoo..."
           for i in {1..30}; do
-            if curl -s http://localhost:8069/web/login > /dev/null; then
+            if curl -sf http://localhost:8069/web/login > /dev/null; then
               echo "Odoo is up"
               exit 0
             fi
+            echo "Attempt $i/30..."
             sleep 5
           done
           echo "Odoo did not start in time"
           docker compose logs
           exit 1
 
+      - name: Initialize Odoo database
+        run: |
+          # Creamos la BD 'ci_test' para que Odoo genere el filestore
+          CONTAINER=$(docker compose ps -q web)
+          docker exec "$CONTAINER" odoo \
+            --config /etc/odoo/odoo.conf \
+            --database ci_test \
+            --init base \
+            --stop-after-init \
+            --without-demo all
+
       - name: Assert filestore path
         run: |
-          set +e
-          CONTAINER=$(docker ps \
-            --filter "label=com.docker.compose.service=web" \
-            --format "{{.ID}}")
-          set -e
+          CONTAINER=$(docker compose ps -q web)
 
           if [ -z "$CONTAINER" ]; then
-            echo "ERROR: Odoo container not found"
+            echo "ERROR: Odoo web container not found"
             docker compose ps
             docker compose logs
             exit 1
           fi
-      
-          docker exec "$CONTAINER" test -d /var/lib/odoo/filestore
-          docker exec "$CONTAINER" test ! -d /root/.local/share/Odoo
 
-      # Simulate a rebuild by taking down the stack and bringing it back up
+          echo "Container: $CONTAINER"
+
+          # Verificar que data_dir está montado correctamente
+          docker exec "$CONTAINER" test -d /var/lib/odoo \
+            && echo "OK: /var/lib/odoo exists"
+
+          # Verificar que el filestore se creó tras init
+          docker exec "$CONTAINER" test -d /var/lib/odoo/filestore \
+            && echo "OK: filestore exists"
+
+          # Verificar que NO se usa el path por defecto (sin config)
+          docker exec "$CONTAINER" test ! -d /root/.local/share/Odoo \
+            && echo "OK: default path not used"
+
       - name: Rebuild test (down -> up)
         run: |
           docker compose down
           docker compose up -d
-
           for i in {1..20}; do
-            if curl -s http://localhost:8069/web/login > /dev/null; then
+            if curl -sf http://localhost:8069/web/login > /dev/null; then
               echo "Odoo is up after rebuild"
               exit 0
             fi
+            echo "Attempt $i/20..."
             sleep 5
           done
-
           echo "Odoo did not recover after rebuild"
           docker compose logs
           exit 1
 
       - name: Final filestore check
         run: |
-          CONTAINER=$(docker ps \
-            --filter "label=com.docker.compose.service=web" \
-            --format "{{.ID}}")
-
-          docker exec "$CONTAINER" test -d /var/lib/odoo/filestore
+          CONTAINER=$(docker compose ps -q web)
+          docker exec "$CONTAINER" test -d /var/lib/odoo/filestore \
+            && echo "OK: filestore persisted after rebuild"
 
       - name: Odoo logs (on failure)
         if: failure()
