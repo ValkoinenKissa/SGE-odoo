@@ -26,13 +26,13 @@ services:
     volumes:
       - ./addons:/mnt/extra-addons          # bind mount (necesario para desarrollo de modulos)
       - ./odoo.conf:/etc/odoo/odoo.conf     # bind mount para sobrrescribir config
-      - web-data:/var/lib/odoo              # named volume
+      - odoo-data:/var/lib/odoo             # named volume
     environment:
       - HOST=db
       - USER=odoo
       - PASSWORD=odoo
     restart: unless-stopped
 
-volumes:          # ← declaración obligatoria al final
+volumes:          
   db-data:
-  web-data:
+  odoo-data:
